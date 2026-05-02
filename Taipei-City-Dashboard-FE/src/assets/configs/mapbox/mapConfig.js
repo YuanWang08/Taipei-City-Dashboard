@@ -440,18 +440,21 @@ export const maplayerCommonLayout = {
 	},
 	"symbol-ev_charging": {
 		"icon-image": "ev_charging",
-		"icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.4, 14, 0.7, 22, 1],
-		"icon-allow-overlap": true,
+		"icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.2, 14, 0.4, 22, 0.7],
+		"icon-allow-overlap": false,
+		"icon-padding": 2,
 	},
 	"symbol-ev_motor": {
 		"icon-image": "ev_motor",
-		"icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.35, 14, 0.6, 22, 0.9],
-		"icon-allow-overlap": true,
+		"icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.18, 14, 0.35, 22, 0.6],
+		"icon-allow-overlap": false,
+		"icon-padding": 2,
 	},
 	"symbol-restaurant": {
 		"icon-image": "restaurant",
-		"icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.4, 14, 0.65, 22, 1],
-		"icon-allow-overlap": true,
+		"icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.2, 14, 0.4, 22, 0.7],
+		"icon-allow-overlap": false,
+		"icon-padding": 2,
 	},
 	"symbol-youbike": {
 		"icon-image": [
