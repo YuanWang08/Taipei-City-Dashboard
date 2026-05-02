@@ -88,6 +88,62 @@ SOURCES = {
             'eco_tags': '額外環保作為',
         },
     },
+    # ---- 台北充電樁 (汽車) ----
+    'car_tpe_a': {
+        'url': 'https://data.taipei/api/frontstage/tpeod/dataset/resource.download?rid=739cec36-ed1b-4b92-b1f3-ffadf05fe6c7',
+        'format': 'csv',
+        'encoding': 'big5',
+        'table': 'charging_station_car_tpe',
+        'truncate': True,
+        'derive_district_from_address': True,
+        'mapping': {
+            'station_name': '名稱',
+            'address':      '地址',
+            'category':     '廠商',
+        },
+    },
+    # ---- 台北充電樁 (機車) ----
+    # 三個 CSV 灌進同一張表（後兩個 append）
+    'motor_tpe_a': {
+        'url': 'https://data.taipei/api/frontstage/tpeod/dataset/resource.download?rid=eff59f75-4a84-463d-adbe-59446dbf94c8',
+        'format': 'csv',
+        'encoding': 'utf-8-sig',
+        'table': 'charging_station_motor_tpe',
+        'truncate': True,
+        'derive_district_from_address': True,
+        'mapping': {
+            'station_name': '單位',
+            'district':     '行政區',
+            'address':      '地址',
+            'category':     '備註',
+        },
+    },
+    'motor_tpe_b': {
+        'url': 'https://data.taipei/api/frontstage/tpeod/dataset/resource.download?rid=c940eb09-c131-46e5-837c-5c96e7897253',
+        'format': 'csv',
+        'encoding': 'big5',
+        'table': 'charging_station_motor_tpe',
+        'truncate': False,
+        'derive_district_from_address': True,
+        'mapping': {
+            'station_name': '名稱',
+            'address':      '地址',
+            'category':     '廠商',
+        },
+    },
+    'motor_tpe_c': {
+        'url': 'https://data.taipei/api/frontstage/tpeod/dataset/resource.download?rid=c0f07b6c-ff55-4fae-a390-ddfe9374d4d7',
+        'format': 'csv',
+        'encoding': 'big5',
+        'table': 'charging_station_motor_tpe',
+        'truncate': False,
+        'derive_district_from_address': True,
+        'mapping': {
+            'station_name': '名稱',
+            'address':      '地址',
+            'category':     '廠商',
+        },
+    },
 }
 
 # 從地址抽出行政區，例如「臺北市松山區敦化北路…」→「松山區」
@@ -116,7 +172,7 @@ NTPC_DISTRICT_CENTROID = {
 import csv
 import io
 
-def fetch_records(url, fmt='json', retries=3):
+def fetch_records(url, fmt='json', encoding=None, retries=3):
     """從政府 API 抓 JSON 或 CSV，回傳 list of dict"""
     req = urllib.request.Request(url, headers={'User-Agent': 'hackathon-2026/1.0'})
     for i in range(retries):
@@ -124,9 +180,10 @@ def fetch_records(url, fmt='json', retries=3):
             with urllib.request.urlopen(req, timeout=60) as r:
                 raw = r.read()
             if fmt == 'csv':
-                text = raw.decode('utf-8-sig')  # strip BOM
+                enc = encoding or 'utf-8-sig'
+                text = raw.decode(enc, errors='replace')
                 return list(csv.DictReader(io.StringIO(text)))
-            return json.loads(raw.decode('utf-8'))
+            return json.loads(raw.decode(encoding or 'utf-8'))
         except Exception as e:
             print(f"  fetch retry {i+1}: {e}")
             time.sleep(2)
@@ -209,9 +266,10 @@ def extract_district(addr):
 def run(source_key, conn, cache):
     cfg = SOURCES[source_key]
     derive_district = cfg.get('derive_district_from_address', False)
+    truncate = cfg.get('truncate', True)
     print(f"\n=== Loading {source_key} from {cfg['url']} ===")
-    rows = fetch_records(cfg['url'], fmt=cfg.get('format', 'json'))
-    print(f"  fetched {len(rows)} records")
+    rows = fetch_records(cfg['url'], fmt=cfg.get('format', 'json'), encoding=cfg.get('encoding'))
+    print(f"  fetched {len(rows)} records (truncate={truncate})")
 
     # 1. geocode all addresses
     print(f"  geocoding {len(rows)} addresses (this takes ~{len(rows)} sec)...")
@@ -254,7 +312,8 @@ def run(source_key, conn, cache):
     # 2. insert
     print(f"  inserting {len(geocoded)} rows into {cfg['table']}...")
     with conn.cursor() as cur:
-        cur.execute(f"TRUNCATE {cfg['table']} RESTART IDENTITY")
+        if truncate:
+            cur.execute(f"TRUNCATE {cfg['table']} RESTART IDENTITY")
 
         all_cols = list(cfg['mapping'].keys())
         if derive_district and 'district' not in all_cols:

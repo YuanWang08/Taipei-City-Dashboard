@@ -47,13 +47,41 @@ SELECT json_build_object(
   ), '[]'::json)
 ) FROM charging_station_motor_new_tpe WHERE geometry IS NOT NULL;
 
--- 充電樁汽車（台北 - 暫無資料）
+-- 充電樁汽車（台北）
 \o /tmp/ev_charging_car_tpe.geojson
-SELECT json_build_object('type', 'FeatureCollection', 'features', '[]'::json);
+SELECT json_build_object(
+  'type', 'FeatureCollection',
+  'features', COALESCE(json_agg(
+    json_build_object(
+      'type', 'Feature',
+      'geometry', ST_AsGeoJSON(geometry)::json,
+      'properties', json_build_object(
+        'station_name', station_name,
+        'district',     district,
+        'address',      address,
+        'category',     category
+      )
+    )
+  ), '[]'::json)
+) FROM charging_station_car_tpe WHERE geometry IS NOT NULL;
 
--- 充電樁機車（台北 - 暫無資料）
+-- 充電樁機車（台北）
 \o /tmp/ev_charging_motor_tpe.geojson
-SELECT json_build_object('type', 'FeatureCollection', 'features', '[]'::json);
+SELECT json_build_object(
+  'type', 'FeatureCollection',
+  'features', COALESCE(json_agg(
+    json_build_object(
+      'type', 'Feature',
+      'geometry', ST_AsGeoJSON(geometry)::json,
+      'properties', json_build_object(
+        'station_name', station_name,
+        'district',     district,
+        'address',      address,
+        'category',     category
+      )
+    )
+  ), '[]'::json)
+) FROM charging_station_motor_tpe WHERE geometry IS NOT NULL;
 
 -- 環保餐廳（台北）
 \o /tmp/env_restaurant_tpe.geojson
