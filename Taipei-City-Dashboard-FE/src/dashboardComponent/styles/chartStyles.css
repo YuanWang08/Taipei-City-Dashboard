@@ -26,6 +26,7 @@
 
 .apexcharts-tooltip {
 	box-shadow: 0px 0px 5px black !important;
+	z-index: 9999 !important;
 }
 .apexcharts-tooltip .chart-tooltip,
 .chart-tooltip {

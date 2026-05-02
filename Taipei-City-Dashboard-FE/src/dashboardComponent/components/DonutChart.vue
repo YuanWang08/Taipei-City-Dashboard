@@ -96,6 +96,12 @@ const chartOptions = ref({
 	},
 	tooltip: {
 		followCursor: false,
+		fixed: {
+			enabled: true,
+			position: "topRight",
+			offsetX: -10,
+			offsetY: 10,
+		},
 		custom: function ({
 			series,
 			seriesIndex,
