@@ -13,7 +13,7 @@ import http from "../../router/axios";
 const chatStore = useChatStore();
 const contentStore = useContentStore();
 const authStore = useAuthStore();
-const { addChatData, addQueryData, saveChatLog } = chatStore;
+const { addChatData, addQueryData, askSustainabilityAI, saveChatLog } = chatStore;
 const { createDashboard } = contentStore;
 const { chatData } = storeToRefs(chatStore);
 const { editDashboard } = storeToRefs(contentStore);
@@ -64,7 +64,7 @@ const qaBtnHandler = async (text, relations) => {
 
 const sendBtnHandler = (text) => {
 	if (!text.trim()) return;
-	addQueryData({
+	askSustainabilityAI({
 		role: "user",
 		content: text,
 	});

@@ -10,9 +10,30 @@ export const useChatStore = defineStore('chat', () => {
       		role: 'bot',
 	  		isDefault: true,
       		content:
-        	'您好，我是【臺北城市儀表板】小幫手，很高興為您服務！\n 您可以： \n\n • 點擊左側既有的儀表板主題，快速查看各主題內容 \n • 輸入您感興趣的主題描述，我會自動為您組建最適合的儀表板 \n\n 如果有想了解的內容，歡迎直接告訴我，我會盡力協助！\n\n 📩 聯絡信箱：tuic@gov.taipei \n 🏢 臺北大數據中心 \n\n',
+        	'您好，我是「雙北永續助手」🌱\n\n• 找電動車充電樁、推薦環保餐廳\n• 規劃低碳行程、估算碳排放\n• 比較雙北各區永續資源\n\n試試問我：「我從信義區開電動車回三重，中途要充電 + 吃環保餐廳，有什麼推薦？這趟比油車省多少碳？」',
     	},
   	];
+
+	// 雙北永續資料 (預先聚合的行政區統計)
+	const SUSTAINABILITY_SYSTEM_PROMPT = `你是「雙北永續助手」，幫使用者規劃低碳行程：找電動車充電樁、推薦環保餐廳、估算碳排放。
+
+【雙北資料 (2025)】
+各行政區資源 (汽車充電 / 機車充電 / 環保餐廳 數量)：
+台北市：信義區(30/70/58) 大安區(22/60/97) 中山區(30/70/53) 內湖區(29/89/38) 北投區(22/84/31) 士林區(26/72/36) 文山區(16/78/23) 松山區(13/47/38) 中正區(12/37/47) 大同區(12/54/15) 萬華區(9/58/24) 南港區(13/53/19)
+新北市：板橋區(17/66/147) 中和區(13/30/116) 新莊區(8/49/84) 三重區(15/49/61) 永和區(5/19/39) 新店區(10/28/37) 樹林區(0/24/28) 土城區(6/19/28) 淡水區(3/26/27) 林口區(3/22/27) 蘆洲區(5/15/29) 三峽區(3/22/17) 汐止區(1/20/20)
+
+【用電結構 2025】
+台北：服務業 54.35% / 住宅 34.20% / 工業 3.10%（商業大城）
+新北：住宅 42.52% / 服務業 28.64% / 工業 25.76%（住商工平衡）
+
+【碳排係數】
+油車: 0.21 kg CO2/km, 電車: 0.08 kg CO2/km, 油機車: 0.06, 電機車: 0.02
+
+【回答原則】
+- 簡潔，3-5 句話
+- 推薦時用「行政區+資源數量」說明
+- 算碳排比較時給具體公斤數
+- 不知道的事不要瞎掰`;
 
 	const recommendComponents = ref(null)
 
@@ -101,6 +122,52 @@ export const useChatStore = defineStore('chat', () => {
 		saveChatLog(newChatData.content, recommendComponents.value);
   	};
 
+	// 雙北永續助手對話：呼叫 TWCC LLM
+	const askSustainabilityAI = async (newChatData) => {
+		// 先加 user message
+		chatData.value.push({ id: chatData.value.length + 1, isDefault: false, ...newChatData });
+		// 加「思考中」placeholder
+		const placeholderId = chatData.value.length + 1;
+		chatData.value.push({ id: placeholderId, role: 'bot', isDefault: false, content: '思考中... 🌱', isLoading: true });
+
+		try {
+			// 組 messages：歷史對話 (排除 default + loading) + system + 新 user
+			const history = chatData.value
+				.filter(m => !m.isDefault && !m.isLoading && m.id !== placeholderId)
+				.slice(-6) // 最近 6 則 keep context 短
+				.map(m => ({
+					role: m.role === 'bot' ? 'assistant' : 'user',
+					content: m.content
+				}));
+
+			const response = await http.post('/ai/chat/twai', {
+				messages: [
+					{ role: 'system', content: SUSTAINABILITY_SYSTEM_PROMPT },
+					...history,
+				],
+			});
+
+			// 取出 LLM 回答
+			const answer = response.data?.data?.content || '抱歉，沒拿到回答。';
+
+			// 替換 loading message
+			const idx = chatData.value.findIndex(m => m.id === placeholderId);
+			if (idx >= 0) {
+				chatData.value[idx] = { id: placeholderId, role: 'bot', isDefault: false, content: answer };
+			}
+
+			// 紀錄 chatlog（不擋）
+			saveChatLog(newChatData.content, answer).catch(() => {});
+		} catch (error) {
+			console.error('SustainabilityAIError:', error);
+			const idx = chatData.value.findIndex(m => m.id === placeholderId);
+			const errMsg = error.response?.data?.message || error.message || '網路錯誤';
+			if (idx >= 0) {
+				chatData.value[idx] = { id: placeholderId, role: 'bot', isDefault: false, content: `❌ 出錯了：${errMsg}` };
+			}
+		}
+	};
+
 	const saveChatLog = async(question, answer) => {
 		try {
         	const formData = new FormData();
@@ -124,5 +191,5 @@ export const useChatStore = defineStore('chat', () => {
       	}
 	};
 
-	return { chatData, addChatData, addQueryData, saveChatLog }
+	return { chatData, addChatData, addQueryData, askSustainabilityAI, saveChatLog }
 })
