@@ -9,6 +9,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/sugarme/tokenizer"
@@ -99,12 +100,17 @@ func InitLmSession() *ort.DynamicSession[int64, float32] {
 	ort.SetSharedLibraryPath("/usr/lib/libonnxruntime.so") // 設定共享函式庫路徑
 
 	if err := ort.InitializeEnvironment(); err != nil {
-		log.Fatalf("InitializeEnvironment error: %v", err)
+		log.Printf("[WARN] InitializeEnvironment error (vector search disabled): %v", err)
+		return nil
 	}
 
 	// 2) 模型路徑
 	modelDir := LMConfig.ModelPath
 	modelPath := filepath.Join(modelDir, "model.onnx")
+	if _, err := os.Stat(modelPath); err != nil {
+		log.Printf("[WARN] LM model not found at %s, vector search disabled: %v", modelPath, err)
+		return nil
+	}
 
 	// 3) 檢查 I/O 資訊
 	// inputsInfo, outputsInfo, err := ort.GetInputOutputInfo(modelPath)
@@ -136,10 +142,14 @@ func InitLmSession() *ort.DynamicSession[int64, float32] {
 func InitTokenizer() *tokenizer.Tokenizer {
     modelDir := global.LM.ModelPath
     tokenizerPath := filepath.Join(modelDir, "tokenizer.json")
+    if _, err := os.Stat(tokenizerPath); err != nil {
+        log.Printf("[WARN] Tokenizer not found at %s, vector search disabled: %v", tokenizerPath, err)
+        return nil
+    }
 	tk, err := pretrained.FromFile(tokenizerPath)
     if err != nil {
-        // 啟動時失敗就報警並停止，這比執行中當機好找原因
-        log.Fatalf("Critical: Failed to load tokenizer: %v", err)
+        log.Printf("[WARN] Failed to load tokenizer (vector search disabled): %v", err)
+        return nil
     }
     return tk
 }
