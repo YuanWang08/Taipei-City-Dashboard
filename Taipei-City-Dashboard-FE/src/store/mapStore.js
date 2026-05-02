@@ -310,6 +310,9 @@ export const useMapStore = defineStore("map", {
 				"cctv",
 				"live",
 				"youbike_elec",
+				"ev_charging",
+				"ev_motor",
+				"restaurant",
 			];
 			images.forEach((element) => {
 				this.map.loadImage(
